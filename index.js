@@ -12,7 +12,6 @@ const {
   entersState,
 } = require("@discordjs/voice");
 
-
 // =======================
 // 🌐 Express Web Server
 // =======================
@@ -24,7 +23,6 @@ app.get("/", (req, res) => {
 app.listen(process.env.PORT || 3000, () => {
   console.log("🌐 Web server running.");
 });
-
 
 // =======================
 // 🤖 Discord Bot Setup
@@ -39,7 +37,6 @@ const STREAM_URL = process.env.STREAM_URL;
 
 let connection;
 let player;
-
 
 // =======================
 // 🎵 Start Radio Function
@@ -64,7 +61,6 @@ async function startRadio(channel) {
       player.play(resource);
     };
 
-    // Restart stream if it stops
     player.on(AudioPlayerStatus.Idle, () => {
       console.log("⚠ Stream idle — restarting...");
       playStream();
@@ -75,7 +71,6 @@ async function startRadio(channel) {
       playStream();
     });
 
-    // Auto-reconnect if disconnected
     connection.on(VoiceConnectionStatus.Disconnected, async () => {
       console.log("⚠ Voice disconnected. Attempting reconnect...");
       try {
@@ -84,8 +79,8 @@ async function startRadio(channel) {
           entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
         ]);
         console.log("🔄 Reconnected successfully.");
-      } catch (error) {
-        console.log("❌ Reconnect failed. Destroying & retrying...");
+      } catch {
+        console.log("❌ Reconnect failed. Destroying connection.");
         connection.destroy();
       }
     });
@@ -99,7 +94,6 @@ async function startRadio(channel) {
   }
 }
 
-
 // =======================
 // 🚀 When Bot Ready
 // =======================
@@ -112,15 +106,23 @@ client.once("ready", async () => {
 
   startRadio(channel);
 
-  // Auto-rejoin if kicked from VC
+  // 🔁 Auto-rejoin if manually disconnected
   setInterval(async () => {
-    if (!connection || connection.state.status === VoiceConnectionStatus.Destroyed) {
-      console.log("🔁 Bot not connected. Rejoining...");
-      startRadio(channel);
-    }
-  }, 30000); // every 30 seconds
-});
+    try {
+      const refreshedChannel = await client.channels.fetch(VOICE_CHANNEL_ID);
+      if (!refreshedChannel) return;
 
+      const botMember = refreshedChannel.guild.members.me;
+
+      if (!botMember || botMember.voice.channelId !== VOICE_CHANNEL_ID) {
+        console.log("🔁 Bot not in VC. Rejoining...");
+        startRadio(refreshedChannel);
+      }
+    } catch (err) {
+      console.log("Rejoin check error:", err.message);
+    }
+  }, 15000); // every 15 seconds
+});
 
 // =======================
 // 🔐 Login
