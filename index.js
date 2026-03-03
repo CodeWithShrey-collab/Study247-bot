@@ -1,22 +1,34 @@
+require("dotenv").config();
 const express = require("express");
 const app = express();
 
-app.get("/", (req, res) => {
-  res.send("Bot is alive 24/7");
-});
-
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Web server running.");
-});
-
-require("dotenv").config();
 const { Client, GatewayIntentBits } = require("discord.js");
 const {
   joinVoiceChannel,
   createAudioPlayer,
   createAudioResource,
   AudioPlayerStatus,
+  VoiceConnectionStatus,
+  entersState,
 } = require("@discordjs/voice");
+
+
+// =======================
+// 🌐 Express Web Server
+// =======================
+
+app.get("/", (req, res) => {
+  res.send("Bot is alive 24/7");
+});
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log("🌐 Web server running.");
+});
+
+
+// =======================
+// 🤖 Discord Bot Setup
+// =======================
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
@@ -25,38 +37,93 @@ const client = new Client({
 const VOICE_CHANNEL_ID = process.env.VOICE_CHANNEL_ID;
 const STREAM_URL = process.env.STREAM_URL;
 
-function startRadio(channel) {
-  const connection = joinVoiceChannel({
-    channelId: channel.id,
-    guildId: channel.guild.id,
-    adapterCreator: channel.guild.voiceAdapterCreator,
-    selfDeaf: false,
-  });
+let connection;
+let player;
 
-  const player = createAudioPlayer();
 
-  const playStream = () => {
-    const resource = createAudioResource(STREAM_URL);
-    player.play(resource);
-  };
+// =======================
+// 🎵 Start Radio Function
+// =======================
 
-  // If stream drops, restart it
-  player.on(AudioPlayerStatus.Idle, () => playStream());
-  player.on("error", () => playStream());
+async function startRadio(channel) {
+  try {
+    console.log("🔊 Joining voice channel...");
 
-  playStream();
-  connection.subscribe(player);
+    connection = joinVoiceChannel({
+      channelId: channel.id,
+      guildId: channel.guild.id,
+      adapterCreator: channel.guild.voiceAdapterCreator,
+      selfDeaf: false,
+    });
 
-  console.log("✅ Joined VC and started 24/7 stream.");
+    player = createAudioPlayer();
+
+    const playStream = () => {
+      console.log("🎶 Starting stream...");
+      const resource = createAudioResource(STREAM_URL);
+      player.play(resource);
+    };
+
+    // Restart stream if it stops
+    player.on(AudioPlayerStatus.Idle, () => {
+      console.log("⚠ Stream idle — restarting...");
+      playStream();
+    });
+
+    player.on("error", (err) => {
+      console.log("❌ Player error — restarting...", err.message);
+      playStream();
+    });
+
+    // Auto-reconnect if disconnected
+    connection.on(VoiceConnectionStatus.Disconnected, async () => {
+      console.log("⚠ Voice disconnected. Attempting reconnect...");
+      try {
+        await Promise.race([
+          entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
+          entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
+        ]);
+        console.log("🔄 Reconnected successfully.");
+      } catch (error) {
+        console.log("❌ Reconnect failed. Destroying & retrying...");
+        connection.destroy();
+      }
+    });
+
+    playStream();
+    connection.subscribe(player);
+
+    console.log("✅ 24/7 Radio Active.");
+  } catch (error) {
+    console.log("❌ Failed to start radio:", error);
+  }
 }
 
+
+// =======================
+// 🚀 When Bot Ready
+// =======================
+
 client.once("ready", async () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
+  console.log(`🤖 Logged in as ${client.user.tag}`);
 
   const channel = await client.channels.fetch(VOICE_CHANNEL_ID);
   if (!channel) return console.log("❌ Voice channel not found.");
 
   startRadio(channel);
+
+  // Auto-rejoin if kicked from VC
+  setInterval(async () => {
+    if (!connection || connection.state.status === VoiceConnectionStatus.Destroyed) {
+      console.log("🔁 Bot not connected. Rejoining...");
+      startRadio(channel);
+    }
+  }, 30000); // every 30 seconds
 });
+
+
+// =======================
+// 🔐 Login
+// =======================
 
 client.login(process.env.TOKEN);
