@@ -101,3 +101,7 @@ Text Permissions (Optional):
 * Read Message History
 
 ---
+
+
+## Note:
+The bot can go down if on free plan may be after some weeks or months so u need to manually deploy again. In my case i did it on render.
