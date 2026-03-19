@@ -5,6 +5,7 @@ process.on("uncaughtException", (err) => {
 process.on("unhandledRejection", (err) => {
   console.error("REJECTION:", err);
 });
+
 const express = require("express");
 const app = express();
 
@@ -18,13 +19,17 @@ const {
   entersState,
 } = require("@discordjs/voice");
 
+// =======================
+// 🔍 ENV CHECK
+// =======================
+
 console.log("ENV CHECK:");
 console.log("TOKEN:", process.env.TOKEN ? "Loaded" : "Missing");
 console.log("VOICE_CHANNEL_ID:", process.env.VOICE_CHANNEL_ID);
 console.log("STREAM_URL:", process.env.STREAM_URL);
 
 // =======================
-// 🌐 Express Web Server
+// 🌐 EXPRESS SERVER
 // =======================
 
 app.get("/", (req, res) => {
@@ -36,7 +41,7 @@ app.listen(process.env.PORT || 3000, () => {
 });
 
 // =======================
-// 🤖 Discord Bot Setup
+// 🤖 DISCORD SETUP
 // =======================
 
 const client = new Client({
@@ -50,7 +55,7 @@ let connection;
 let player;
 
 // =======================
-// 🎵 Start Radio Function
+// 🎵 RADIO FUNCTION
 // =======================
 
 async function startRadio(channel) {
@@ -89,9 +94,9 @@ async function startRadio(channel) {
           entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
           entersState(connection, VoiceConnectionStatus.Connecting, 5_000),
         ]);
-        console.log("🔄 Reconnected successfully.");
+        console.log("🔄 Reconnected.");
       } catch {
-        console.log("❌ Reconnect failed. Destroying connection.");
+        console.log("❌ Reconnect failed. Destroying...");
         connection.destroy();
       }
     });
@@ -106,7 +111,7 @@ async function startRadio(channel) {
 }
 
 // =======================
-// 🚀 When Bot Ready
+// 🚀 BOT READY
 // =======================
 
 client.once("ready", async () => {
@@ -115,9 +120,12 @@ client.once("ready", async () => {
   const channel = await client.channels.fetch(VOICE_CHANNEL_ID);
   if (!channel) return console.log("❌ Voice channel not found.");
 
-  startRadio(channel);
+  // 🔥 DELAYED START (VERY IMPORTANT)
+  setTimeout(() => {
+    startRadio(channel);
+  }, 5000);
 
-  // 🔁 Auto-rejoin if manually disconnected
+  // 🔁 AUTO-REJOIN LOOP
   setInterval(async () => {
     try {
       const refreshedChannel = await client.channels.fetch(VOICE_CHANNEL_ID);
@@ -132,19 +140,15 @@ client.once("ready", async () => {
     } catch (err) {
       console.log("Rejoin check error:", err.message);
     }
-  }, 15000); // every 15 seconds
+  }, 15000);
 });
 
 // =======================
-// 🔐 Login
+// 🔐 LOGIN
 // =======================
 
 console.log("🚀 Attempting login...");
 
 client.login(process.env.TOKEN)
-  .then(() => {
-    console.log("✅ Login request sent");
-  })
-  .catch((err) => {
-    console.error("❌ LOGIN ERROR:", err);
-  });
+  .then(() => console.log("✅ Login request sent"))
+  .catch((err) => console.error("❌ LOGIN ERROR:", err));
