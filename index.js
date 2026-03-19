@@ -1,3 +1,10 @@
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT:", err);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("REJECTION:", err);
+});
 const express = require("express");
 const app = express();
 
@@ -132,4 +139,12 @@ client.once("ready", async () => {
 // 🔐 Login
 // =======================
 
-client.login(process.env.TOKEN);
+console.log("🚀 Attempting login...");
+
+client.login(process.env.TOKEN)
+  .then(() => {
+    console.log("✅ Login request sent");
+  })
+  .catch((err) => {
+    console.error("❌ LOGIN ERROR:", err);
+  });
