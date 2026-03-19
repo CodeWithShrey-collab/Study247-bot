@@ -1,4 +1,3 @@
-require("dotenv").config();
 const express = require("express");
 const app = express();
 
@@ -11,6 +10,11 @@ const {
   VoiceConnectionStatus,
   entersState,
 } = require("@discordjs/voice");
+
+console.log("ENV CHECK:");
+console.log("TOKEN:", process.env.TOKEN ? "Loaded" : "Missing");
+console.log("VOICE_CHANNEL_ID:", process.env.VOICE_CHANNEL_ID);
+console.log("STREAM_URL:", process.env.STREAM_URL);
 
 // =======================
 // 🌐 Express Web Server
